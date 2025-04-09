@@ -7,12 +7,28 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 import { apiService } from "@/services/api";
 import { Link } from 'react-router-dom';
-import { Trash, Eye } from 'lucide-react';
+import { Trash, Eye, Plus } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 const AirportList = ({ preview = false }) => {
   const [airports, setAirports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [newAirport, setNewAirport] = useState({
+    airport_name: '',
+    city: '',
+    state: '',
+  });
 
   useEffect(() => {
     const fetchAirports = async () => {
@@ -45,8 +61,41 @@ const AirportList = ({ preview = false }) => {
   };
 
   const handleViewDetails = (airportName) => {
-    toast.info(`Viewing details for ${airportName}`);
-    // In a real app, this would navigate to an airport details page
+    const airport = airports.find(a => a.airport_name === airportName);
+    if (airport) {
+      toast.info(
+        <div>
+          <h3 className="font-semibold text-lg">{airport.airport_name}</h3>
+          <p>City: {airport.city}</p>
+          <p>State: {airport.state}</p>
+        </div>
+      );
+    }
+  };
+
+  const handleAddAirport = () => {
+    // Validate inputs
+    if (!newAirport.airport_name || !newAirport.city || !newAirport.state) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+
+    // Add to local state
+    const updatedAirports = [...airports, newAirport];
+    setAirports(updatedAirports);
+    
+    // Reset form and close dialog
+    setNewAirport({ airport_name: '', city: '', state: '' });
+    setIsAddDialogOpen(false);
+    toast.success(`Airport ${newAirport.airport_name} added`);
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setNewAirport({
+      ...newAirport,
+      [name]: value,
+    });
   };
 
   const filteredAirports = airports.filter(airport => 
@@ -68,9 +117,68 @@ const AirportList = ({ preview = false }) => {
   return (
     <Card>
       {!preview && (
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-2xl">Airport Information</CardTitle>
-          <div className="mt-4">
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="ml-auto">
+                <Plus className="mr-2 h-4 w-4" /> Add New Airport
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add New Airport</DialogTitle>
+                <DialogDescription>
+                  Enter the details of the new airport below
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="airport_name" className="text-right">
+                    Airport Name
+                  </Label>
+                  <Input
+                    id="airport_name"
+                    name="airport_name"
+                    value={newAirport.airport_name}
+                    onChange={handleInputChange}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="city" className="text-right">
+                    City
+                  </Label>
+                  <Input
+                    id="city"
+                    name="city"
+                    value={newAirport.city}
+                    onChange={handleInputChange}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="state" className="text-right">
+                    State
+                  </Label>
+                  <Input
+                    id="state"
+                    name="state"
+                    value={newAirport.state}
+                    onChange={handleInputChange}
+                    className="col-span-3"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleAddAirport}>Add Airport</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          <div className="flex w-full max-w-sm items-center space-x-2 mt-4">
             <Input
               placeholder="Search airports by name, city, or state..."
               value={searchTerm}
