@@ -5,13 +5,32 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Trash, Eye, Plus } from 'lucide-react';
 import { toast } from 'sonner';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogFooter,
+  DialogClose
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 
 const Passengers = () => {
   const [passengers, setPassengers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [newPassenger, setNewPassenger] = useState({
+    passport_number: '',
+    name: '',
+    address: '',
+    sex: 'Male',
+    dob: '',
+    flight_number: '',
+    ticket_number: ''
+  });
 
   // Mock data - In a real app, this would come from an API
   const mockPassengers = [
@@ -75,6 +94,42 @@ const Passengers = () => {
     }, 800);
   }, []);
 
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setNewPassenger(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleAddPassenger = (e) => {
+    e.preventDefault();
+    // In a real app, this would call an API to add the passenger
+    const newPassengerWithAge = {
+      ...newPassenger,
+      // Calculate age based on DOB
+      age: new Date().getFullYear() - new Date(newPassenger.dob).getFullYear()
+    };
+    
+    setPassengers([...passengers, newPassengerWithAge]);
+    toast.success(`Added passenger: ${newPassenger.name}`);
+    setDialogOpen(false);
+    setNewPassenger({
+      passport_number: '',
+      name: '',
+      address: '',
+      sex: 'Male',
+      dob: '',
+      flight_number: '',
+      ticket_number: ''
+    });
+  };
+
+  const handleDeletePassenger = (passportNumber) => {
+    setPassengers(passengers.filter(passenger => passenger.passport_number !== passportNumber));
+    toast.success(`Passenger with passport ${passportNumber} deleted`);
+  };
+
   const handleViewDetails = (passportNumber) => {
     toast.info(`Viewing details for passenger with passport ${passportNumber}`);
     // In a real app, this would navigate to a passenger details page
@@ -103,7 +158,12 @@ const Passengers = () => {
               <ArrowLeft size={16} /> Back to Dashboard
             </Button>
           </Link>
-          <Button className="bg-[#e67e22] hover:bg-orange-600">Add New Passenger</Button>
+          <Button 
+            className="bg-[#e67e22] hover:bg-orange-600 flex items-center gap-2"
+            onClick={() => setDialogOpen(true)}
+          >
+            <Plus size={16} /> Add New Passenger
+          </Button>
         </div>
 
         <Card>
@@ -146,13 +206,22 @@ const Passengers = () => {
                           <TableCell>{passenger.flight_number}</TableCell>
                           <TableCell>{passenger.ticket_number}</TableCell>
                           <TableCell>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => handleViewDetails(passenger.passport_number)}
-                            >
-                              View Details
-                            </Button>
+                            <div className="flex space-x-2">
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleViewDetails(passenger.passport_number)}
+                              >
+                                <Eye className="mr-1 h-4 w-4" /> View
+                              </Button>
+                              <Button 
+                                variant="destructive" 
+                                size="sm"
+                                onClick={() => handleDeletePassenger(passenger.passport_number)}
+                              >
+                                <Trash className="mr-1 h-4 w-4" /> Delete
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))
@@ -170,6 +239,106 @@ const Passengers = () => {
           </CardContent>
         </Card>
       </main>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-[550px]">
+          <DialogHeader>
+            <DialogTitle>Add New Passenger</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleAddPassenger}>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="passport_number" className="text-right">
+                  Passport #
+                </Label>
+                <Input
+                  id="passport_number"
+                  name="passport_number"
+                  value={newPassenger.passport_number}
+                  onChange={handleInputChange}
+                  className="col-span-3"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="name" className="text-right">
+                  Name
+                </Label>
+                <Input
+                  id="name"
+                  name="name"
+                  value={newPassenger.name}
+                  onChange={handleInputChange}
+                  className="col-span-3"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="sex" className="text-right">
+                  Sex
+                </Label>
+                <select
+                  id="sex"
+                  name="sex"
+                  value={newPassenger.sex}
+                  onChange={handleInputChange}
+                  className="col-span-3 p-2 border rounded"
+                  required
+                >
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="dob" className="text-right">
+                  Date of Birth
+                </Label>
+                <Input
+                  id="dob"
+                  name="dob"
+                  type="date"
+                  value={newPassenger.dob}
+                  onChange={handleInputChange}
+                  className="col-span-3"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="flight_number" className="text-right">
+                  Flight #
+                </Label>
+                <Input
+                  id="flight_number"
+                  name="flight_number"
+                  value={newPassenger.flight_number}
+                  onChange={handleInputChange}
+                  className="col-span-3"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="ticket_number" className="text-right">
+                  Ticket #
+                </Label>
+                <Input
+                  id="ticket_number"
+                  name="ticket_number"
+                  value={newPassenger.ticket_number}
+                  onChange={handleInputChange}
+                  className="col-span-3"
+                  required
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button type="button" variant="outline">Cancel</Button>
+              </DialogClose>
+              <Button type="submit">Add Passenger</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <footer className="bg-[#2c3e50] text-white p-4 mt-8">
         <div className="container mx-auto text-center">

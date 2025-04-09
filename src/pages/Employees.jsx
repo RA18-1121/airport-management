@@ -5,13 +5,34 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Trash, Eye, Plus } from 'lucide-react';
 import { toast } from 'sonner';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogFooter,
+  DialogClose
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 
 const Employees = () => {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [newEmployee, setNewEmployee] = useState({
+    e_id: '',
+    name: '',
+    address: '',
+    title: '',
+    destination: 'Domestic',
+    salary: '',
+    age: '',
+    dob: '',
+    airport_name: ''
+  });
 
   // Mock data - In a real app, this would come from an API
   const mockEmployees = [
@@ -80,6 +101,44 @@ const Employees = () => {
     }, 800);
   }, []);
 
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setNewEmployee(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleAddEmployee = (e) => {
+    e.preventDefault();
+    // In a real app, this would call an API to add the employee
+    const newEmployeeWithAge = {
+      ...newEmployee,
+      // Calculate age based on DOB
+      age: new Date().getFullYear() - new Date(newEmployee.dob).getFullYear()
+    };
+    
+    setEmployees([...employees, newEmployeeWithAge]);
+    toast.success(`Added employee: ${newEmployee.name}`);
+    setDialogOpen(false);
+    setNewEmployee({
+      e_id: '',
+      name: '',
+      address: '',
+      title: '',
+      destination: 'Domestic',
+      salary: '',
+      age: '',
+      dob: '',
+      airport_name: ''
+    });
+  };
+
+  const handleDeleteEmployee = (employeeId) => {
+    setEmployees(employees.filter(employee => employee.e_id !== employeeId));
+    toast.success(`Employee ${employeeId} deleted`);
+  };
+
   const handleViewDetails = (employeeId) => {
     toast.info(`Viewing details for employee ${employeeId}`);
     // In a real app, this would navigate to an employee details page
@@ -108,7 +167,12 @@ const Employees = () => {
               <ArrowLeft size={16} /> Back to Dashboard
             </Button>
           </Link>
-          <Button className="bg-[#e67e22] hover:bg-orange-600">Add New Employee</Button>
+          <Button 
+            className="bg-[#e67e22] hover:bg-orange-600 flex items-center gap-2"
+            onClick={() => setDialogOpen(true)}
+          >
+            <Plus size={16} /> Add New Employee
+          </Button>
         </div>
 
         <Card>
@@ -153,13 +217,22 @@ const Employees = () => {
                           <TableCell>{employee.salary}</TableCell>
                           <TableCell>{employee.airport_name}</TableCell>
                           <TableCell>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => handleViewDetails(employee.e_id)}
-                            >
-                              View Details
-                            </Button>
+                            <div className="flex space-x-2">
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleViewDetails(employee.e_id)}
+                              >
+                                <Eye className="mr-1 h-4 w-4" /> View
+                              </Button>
+                              <Button 
+                                variant="destructive" 
+                                size="sm"
+                                onClick={() => handleDeleteEmployee(employee.e_id)}
+                              >
+                                <Trash className="mr-1 h-4 w-4" /> Delete
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))
@@ -177,6 +250,103 @@ const Employees = () => {
           </CardContent>
         </Card>
       </main>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-[550px]">
+          <DialogHeader>
+            <DialogTitle>Add New Employee</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleAddEmployee}>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="e_id" className="text-right">
+                  Employee ID
+                </Label>
+                <Input
+                  id="e_id"
+                  name="e_id"
+                  value={newEmployee.e_id}
+                  onChange={handleInputChange}
+                  className="col-span-3"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="name" className="text-right">
+                  Name
+                </Label>
+                <Input
+                  id="name"
+                  name="name"
+                  value={newEmployee.name}
+                  onChange={handleInputChange}
+                  className="col-span-3"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="title" className="text-right">
+                  Title
+                </Label>
+                <Input
+                  id="title"
+                  name="title"
+                  value={newEmployee.title}
+                  onChange={handleInputChange}
+                  className="col-span-3"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="salary" className="text-right">
+                  Salary
+                </Label>
+                <Input
+                  id="salary"
+                  name="salary"
+                  value={newEmployee.salary}
+                  onChange={handleInputChange}
+                  className="col-span-3"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="dob" className="text-right">
+                  Date of Birth
+                </Label>
+                <Input
+                  id="dob"
+                  name="dob"
+                  type="date"
+                  value={newEmployee.dob}
+                  onChange={handleInputChange}
+                  className="col-span-3"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="airport_name" className="text-right">
+                  Airport
+                </Label>
+                <Input
+                  id="airport_name"
+                  name="airport_name"
+                  value={newEmployee.airport_name}
+                  onChange={handleInputChange}
+                  className="col-span-3"
+                  required
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button type="button" variant="outline">Cancel</Button>
+              </DialogClose>
+              <Button type="submit">Add Employee</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <footer className="bg-[#2c3e50] text-white p-4 mt-8">
         <div className="container mx-auto text-center">

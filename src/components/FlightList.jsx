@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 import { apiService } from "@/services/api";
+import { Link } from 'react-router-dom';
+import { Trash, Eye } from 'lucide-react';
 
 const FlightList = ({ preview = false }) => {
   const [flights, setFlights] = useState([]);
@@ -27,6 +29,20 @@ const FlightList = ({ preview = false }) => {
     
     fetchFlights();
   }, []);
+
+  const handleDeleteFlight = async (flightNumber) => {
+    try {
+      // In a real app with a backend, you would call an API endpoint
+      // await apiService.deleteFlight(flightNumber);
+      
+      // For now, we'll just filter the flight out of the local state
+      setFlights(flights.filter(flight => flight.flight_number !== flightNumber));
+      toast.success(`Flight ${flightNumber} deleted`);
+    } catch (error) {
+      console.error("Error deleting flight:", error);
+      toast.error("Failed to delete flight");
+    }
+  };
 
   const handleViewDetails = (flightNumber) => {
     toast.info(`Viewing details for flight ${flightNumber}`);
@@ -100,13 +116,22 @@ const FlightList = ({ preview = false }) => {
                     <TableCell>{flight.airline_name}</TableCell>
                     {!preview && (
                       <TableCell>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleViewDetails(flight.flight_number)}
-                        >
-                          View Details
-                        </Button>
+                        <div className="flex space-x-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleViewDetails(flight.flight_number)}
+                          >
+                            <Eye className="mr-1 h-4 w-4" /> View
+                          </Button>
+                          <Button 
+                            variant="destructive" 
+                            size="sm"
+                            onClick={() => handleDeleteFlight(flight.flight_number)}
+                          >
+                            <Trash className="mr-1 h-4 w-4" /> Delete
+                          </Button>
+                        </div>
                       </TableCell>
                     )}
                   </TableRow>
@@ -124,9 +149,11 @@ const FlightList = ({ preview = false }) => {
         
         {preview && (
           <div className="mt-4 text-center">
-            <Button variant="link" className="text-blue-600">
-              View All Flights
-            </Button>
+            <Link to="/flights">
+              <Button variant="link" className="text-blue-600">
+                View All Flights
+              </Button>
+            </Link>
           </div>
         )}
       </CardContent>
