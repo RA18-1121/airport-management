@@ -5,28 +5,27 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
+import { apiService } from "@/services/api";
 
 const AirlineList = ({ preview = false }) => {
   const [airlines, setAirlines] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Mock data - In a real app, this would come from an API
-  const mockAirlines = [
-    { airline_id: 'AA', airline_name: 'American Airlines', airport_name: 'Dallas/Fort Worth International Airport' },
-    { airline_id: 'DL', airline_name: 'Delta Air Lines', airport_name: 'Hartsfield-Jackson Atlanta International Airport' },
-    { airline_id: 'UA', airline_name: 'United Airlines', airport_name: "O'Hare International Airport" },
-    { airline_id: 'SW', airline_name: 'Southwest Airlines', airport_name: 'Dallas Love Field' },
-    { airline_id: 'JB', airline_name: 'JetBlue Airways', airport_name: 'John F. Kennedy International Airport' },
-    { airline_id: 'AS', airline_name: 'Alaska Airlines', airport_name: 'Seattle-Tacoma International Airport' }
-  ];
-
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setAirlines(mockAirlines);
-      setLoading(false);
-    }, 800);
+    const fetchAirlines = async () => {
+      try {
+        const data = await apiService.getAirlines();
+        setAirlines(data);
+        setLoading(false);
+      } catch (error) {
+        console.error("Error fetching airlines:", error);
+        toast.error("Failed to load airlines");
+        setLoading(false);
+      }
+    };
+    
+    fetchAirlines();
   }, []);
 
   const handleViewDetails = (airlineId) => {

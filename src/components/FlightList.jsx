@@ -5,82 +5,27 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
+import { apiService } from "@/services/api";
 
 const FlightList = ({ preview = false }) => {
   const [flights, setFlights] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Mock data - In a real app, this would come from an API
-  const mockFlights = [
-    { 
-      flight_number: 'FL123', 
-      source: 'New York', 
-      destination: 'Los Angeles',
-      status: 'On Time',
-      d_time: '10:00 AM',
-      a_time: '1:00 PM',
-      connected: 'No',
-      duration: '3h',
-      airline_id: 'AA',
-      airline_name: 'American Airlines'
-    },
-    { 
-      flight_number: 'FL456', 
-      source: 'Chicago', 
-      destination: 'Miami',
-      status: 'Delayed',
-      d_time: '12:30 PM',
-      a_time: '4:15 PM',
-      connected: 'No',
-      duration: '3h 45m',
-      airline_id: 'DL',
-      airline_name: 'Delta Airlines'
-    },
-    { 
-      flight_number: 'FL789', 
-      source: 'Dallas', 
-      destination: 'Seattle',
-      status: 'Boarding',
-      d_time: '2:45 PM',
-      a_time: '5:30 PM',
-      connected: 'Yes',
-      duration: '4h 15m',
-      airline_id: 'UA',
-      airline_name: 'United Airlines'
-    },
-    { 
-      flight_number: 'FL101', 
-      source: 'San Francisco', 
-      destination: 'Boston',
-      status: 'Scheduled',
-      d_time: '7:15 AM',
-      a_time: '3:45 PM',
-      connected: 'Yes',
-      duration: '5h 30m',
-      airline_id: 'SW',
-      airline_name: 'Southwest Airlines'
-    },
-    { 
-      flight_number: 'FL202', 
-      source: 'Atlanta', 
-      destination: 'Denver',
-      status: 'On Time',
-      d_time: '9:30 AM',
-      a_time: '11:00 AM',
-      connected: 'No',
-      duration: '2h 30m',
-      airline_id: 'JB',
-      airline_name: 'JetBlue Airways'
-    }
-  ];
-
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setFlights(mockFlights);
-      setLoading(false);
-    }, 800);
+    const fetchFlights = async () => {
+      try {
+        const data = await apiService.getFlights();
+        setFlights(data);
+        setLoading(false);
+      } catch (error) {
+        console.error("Error fetching flights:", error);
+        toast.error("Failed to load flights");
+        setLoading(false);
+      }
+    };
+    
+    fetchFlights();
   }, []);
 
   const handleViewDetails = (flightNumber) => {
