@@ -1,4 +1,4 @@
-
+// src/components/FlightList.jsx
 import React, { useState, useEffect } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -8,52 +8,75 @@ import { toast } from "sonner";
 import { apiService } from "@/services/api";
 import { Link } from 'react-router-dom';
 import { Trash, Eye } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
-const FlightList = ({ preview = false }) => {
-  const [flights, setFlights] = useState([]);
-  const [loading, setLoading] = useState(true);
+
+const FlightList = ({ preview = false, flights: initialFlights, setFlights }) => { // Accept flights and setter
+  const [loading, setLoading] = useState(!initialFlights);
   const [searchTerm, setSearchTerm] = useState('');
 
+   // State for View Details Dialog
+  const [selectedFlight, setSelectedFlight] = useState(null);
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+
   useEffect(() => {
-    const fetchFlights = async () => {
-      try {
-        const data = await apiService.getFlights();
-        setFlights(data);
-        setLoading(false);
-      } catch (error) {
-        console.error("Error fetching flights:", error);
-        toast.error("Failed to load flights");
-        setLoading(false);
-      }
-    };
-    
-    fetchFlights();
-  }, []);
+    // Only fetch if initialFlights is not provided
+    if (!initialFlights) {
+        const fetchFlights = async () => {
+        try {
+          const data = await apiService.getFlights();
+          if (setFlights) setFlights(data);
+          setLoading(false);
+        } catch (error) {
+          console.error("Error fetching flights:", error);
+          toast.error("Failed to load flights");
+          setLoading(false);
+        }
+      };
+      fetchFlights();
+    } else {
+        setLoading(false); // Data provided
+    }
+  }, [initialFlights, setFlights]);
 
   const handleDeleteFlight = async (flightNumber) => {
+    // Keep using local filter for now
     try {
-      // In a real app with a backend, you would call an API endpoint
-      // await apiService.deleteFlight(flightNumber);
-      
-      // For now, we'll just filter the flight out of the local state
-      setFlights(flights.filter(flight => flight.flight_number !== flightNumber));
-      toast.success(`Flight ${flightNumber} deleted`);
+      // await apiService.deleteFlight(flightNumber); // Future implementation
+      setFlights(currentFlights => currentFlights.filter(flight => flight.flight_number !== flightNumber));
+      toast.success(`Flight ${flightNumber} deleted (locally)`);
     } catch (error) {
       console.error("Error deleting flight:", error);
       toast.error("Failed to delete flight");
     }
   };
 
+  // Updated handleViewDetails
   const handleViewDetails = (flightNumber) => {
-    toast.info(`Viewing details for flight ${flightNumber}`);
-    // In a real app, this would navigate to a flight details page
+    const flight = (initialFlights || []).find(f => f.flight_number === flightNumber);
+     if (flight) {
+      setSelectedFlight(flight);
+      setIsDetailDialogOpen(true);
+    } else {
+        toast.error("Could not find flight details.");
+    }
   };
 
-  const filteredFlights = flights.filter(flight => 
+  const currentFlights = initialFlights || [];
+
+  const filteredFlights = currentFlights.filter(flight =>
     flight.flight_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    flight.source.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    flight.destination.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    flight.airline_name.toLowerCase().includes(searchTerm.toLowerCase())
+    (flight.source && flight.source.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (flight.destination && flight.destination.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (flight.airline_name && flight.airline_name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const displayedFlights = preview ? filteredFlights.slice(0, 3) : filteredFlights;
@@ -69,14 +92,16 @@ const FlightList = ({ preview = false }) => {
   return (
     <Card>
       {!preview && (
-        <CardHeader>
-          <CardTitle className="text-2xl">Flight Information</CardTitle>
-          <div className="mt-4">
+        <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex-grow">
+              <CardTitle className="text-2xl mb-2 md:mb-0">Flight Information</CardTitle>
+          </div>
+          <div className="w-full md:w-auto md:max-w-sm">
             <Input
-              placeholder="Search flights by number, source, destination, or airline..."
+              placeholder="Search flights..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-md"
+              className="w-full"
             />
           </div>
         </CardHeader>
@@ -117,15 +142,15 @@ const FlightList = ({ preview = false }) => {
                     {!preview && (
                       <TableCell>
                         <div className="flex space-x-2">
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
-                            onClick={() => handleViewDetails(flight.flight_number)}
+                            onClick={() => handleViewDetails(flight.flight_number)} // Use updated handler
                           >
                             <Eye className="mr-1 h-4 w-4" /> View
                           </Button>
-                          <Button 
-                            variant="destructive" 
+                          <Button
+                            variant="destructive"
                             size="sm"
                             onClick={() => handleDeleteFlight(flight.flight_number)}
                           >
@@ -146,7 +171,7 @@ const FlightList = ({ preview = false }) => {
             </TableBody>
           </Table>
         </div>
-        
+
         {preview && (
           <div className="mt-4 text-center">
             <Link to="/flights">
@@ -157,6 +182,60 @@ const FlightList = ({ preview = false }) => {
           </div>
         )}
       </CardContent>
+
+       {/* View Details Dialog */}
+       <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
+        <DialogContent className="sm:max-w-[550px]"> {/* Wider dialog */}
+          <DialogHeader>
+            <DialogTitle>Flight Details</DialogTitle>
+          </DialogHeader>
+          {selectedFlight && (
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right font-semibold">Flight #:</Label>
+                <span className="col-span-3">{selectedFlight.flight_number}</span>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right font-semibold">Source:</Label>
+                <span className="col-span-3">{selectedFlight.source}</span>
+              </div>
+               <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right font-semibold">Destination:</Label>
+                <span className="col-span-3">{selectedFlight.destination}</span>
+              </div>
+               <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right font-semibold">Status:</Label>
+                <span className="col-span-3">{selectedFlight.status}</span>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right font-semibold">Departure:</Label>
+                <span className="col-span-3">{selectedFlight.d_time}</span>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right font-semibold">Arrival:</Label>
+                <span className="col-span-3">{selectedFlight.a_time}</span>
+              </div>
+               <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right font-semibold">Airline:</Label>
+                <span className="col-span-3">{selectedFlight.airline_name} ({selectedFlight.airline_id})</span>
+              </div>
+               <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right font-semibold">Connected:</Label>
+                <span className="col-span-3">{selectedFlight.connected}</span>
+              </div>
+               <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right font-semibold">Duration:</Label>
+                <span className="col-span-3">{selectedFlight.duration}</span>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <DialogClose asChild>
+                <Button variant="outline">Close</Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };

@@ -1,4 +1,4 @@
-
+// src/pages/Passengers.jsx
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -7,91 +7,53 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ArrowLeft, Trash, Eye, Plus } from 'lucide-react';
 import { toast } from 'sonner';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription, // Added Description
   DialogFooter,
-  DialogClose
+  DialogClose,
+  DialogTrigger, // Added Trigger
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'; // Import Select
+import { apiService } from "@/services/api"; // Import apiService
 
 const Passengers = () => {
   const [passengers, setPassengers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [addDialogOpen, setAddDialogOpen] = useState(false); // State for Add dialog
+  const [viewDialogOpen, setViewDialogOpen] = useState(false); // State for View dialog
+  const [selectedPassenger, setSelectedPassenger] = useState(null); // State for view details
   const [newPassenger, setNewPassenger] = useState({
     passport_number: '',
     name: '',
     address: '',
     sex: 'Male',
     dob: '',
+    // Removed age
     flight_number: '',
     ticket_number: ''
   });
 
-  // Mock data - In a real app, this would come from an API
-  const mockPassengers = [
-    { 
-      passport_number: 'P123456', 
-      name: 'Robert Brown', 
-      address: '789 Pine St, Boston, MA',
-      sex: 'Male',
-      dob: '1985-07-22',
-      age: 39,
-      flight_number: 'FL123',
-      ticket_number: 'T78901'
-    },
-    { 
-      passport_number: 'P234567', 
-      name: 'Jennifer Lee', 
-      address: '456 Oak Ave, Seattle, WA',
-      sex: 'Female',
-      dob: '1990-04-15',
-      age: 34,
-      flight_number: 'FL456',
-      ticket_number: 'T78902'
-    },
-    { 
-      passport_number: 'P345678', 
-      name: 'Thomas Wilson', 
-      address: '123 Maple Dr, Chicago, IL',
-      sex: 'Male',
-      dob: '1978-11-30',
-      age: 46,
-      flight_number: 'FL789',
-      ticket_number: 'T78903'
-    },
-    { 
-      passport_number: 'P456789', 
-      name: 'Maria Garcia', 
-      address: '567 Cedar Ln, Miami, FL',
-      sex: 'Female',
-      dob: '1995-03-18',
-      age: 29,
-      flight_number: 'FL101',
-      ticket_number: 'T78904'
-    },
-    { 
-      passport_number: 'P567890', 
-      name: 'Daniel Kim', 
-      address: '890 Birch Rd, Los Angeles, CA',
-      sex: 'Male',
-      dob: '1988-09-05',
-      age: 36,
-      flight_number: 'FL202',
-      ticket_number: 'T78905'
-    }
-  ];
-
+  // Fetch initial data
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setPassengers(mockPassengers);
-      setLoading(false);
-    }, 800);
+     const fetchPassengers = async () => {
+      setLoading(true);
+      try {
+        const data = await apiService.getPassengers();
+        setPassengers(data);
+      } catch (error) {
+        toast.error("Failed to load passengers");
+        console.error("Error fetching passengers:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPassengers();
   }, []);
 
   const handleInputChange = (e) => {
@@ -102,44 +64,63 @@ const Passengers = () => {
     }));
   };
 
-  const handleAddPassenger = (e) => {
+   const handleSelectChange = (name, value) => {
+    setNewPassenger(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+
+  // Updated handleAddPassenger
+  const handleAddPassenger = async (e) => {
     e.preventDefault();
-    // In a real app, this would call an API to add the passenger
-    const newPassengerWithAge = {
-      ...newPassenger,
-      // Calculate age based on DOB
-      age: new Date().getFullYear() - new Date(newPassenger.dob).getFullYear()
-    };
-    
-    setPassengers([...passengers, newPassengerWithAge]);
-    toast.success(`Added passenger: ${newPassenger.name}`);
-    setDialogOpen(false);
-    setNewPassenger({
-      passport_number: '',
-      name: '',
-      address: '',
-      sex: 'Male',
-      dob: '',
-      flight_number: '',
-      ticket_number: ''
-    });
+    if (!newPassenger.passport_number || !newPassenger.name || !newPassenger.dob || !newPassenger.flight_number || !newPassenger.ticket_number) {
+        toast.error("Please fill in all required fields.");
+        return;
+    }
+    const result = await apiService.addPassenger(newPassenger);
+
+    if (result.success) {
+      // API response might include calculated age
+      setPassengers(currentPassengers => [...currentPassengers, result.data]);
+      toast.success(`Added passenger: ${newPassenger.name}`);
+      setAddDialogOpen(false); // Close add dialog
+      // Reset form
+      setNewPassenger({
+        passport_number: '', name: '', address: '', sex: 'Male', dob: '', flight_number: '', ticket_number: ''
+      });
+    }
   };
 
-  const handleDeletePassenger = (passportNumber) => {
-    setPassengers(passengers.filter(passenger => passenger.passport_number !== passportNumber));
-    toast.success(`Passenger with passport ${passportNumber} deleted`);
+  const handleDeletePassenger = async (passportNumber) => {
+    // Keep local filter for now
+    try {
+       // await apiService.deletePassenger(passportNumber); // Future implementation
+       setPassengers(passengers.filter(passenger => passenger.passport_number !== passportNumber));
+       toast.success(`Passenger with passport ${passportNumber} deleted (locally)`);
+    } catch (error) {
+       console.error("Error deleting passenger:", error);
+       toast.error("Failed to delete passenger");
+    }
   };
 
+  // Updated handleViewDetails
   const handleViewDetails = (passportNumber) => {
-    toast.info(`Viewing details for passenger with passport ${passportNumber}`);
-    // In a real app, this would navigate to a passenger details page
+    const passenger = passengers.find(p => p.passport_number === passportNumber);
+     if (passenger) {
+      setSelectedPassenger(passenger);
+      setViewDialogOpen(true); // Open view dialog
+    } else {
+        toast.error("Could not find passenger details.");
+    }
   };
 
-  const filteredPassengers = passengers.filter(passenger => 
-    passenger.passport_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    passenger.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    passenger.flight_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    passenger.ticket_number.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredPassengers = passengers.filter(passenger =>
+    (passenger.passport_number && passenger.passport_number.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (passenger.name && passenger.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (passenger.flight_number && passenger.flight_number.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (passenger.ticket_number && passenger.ticket_number.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
@@ -158,23 +139,88 @@ const Passengers = () => {
               <ArrowLeft size={16} /> Back to Dashboard
             </Button>
           </Link>
-          <Button 
-            className="bg-[#e67e22] hover:bg-orange-600 flex items-center gap-2"
-            onClick={() => setDialogOpen(true)}
-          >
-            <Plus size={16} /> Add New Passenger
-          </Button>
+          {/* Add New Passenger Button Trigger */}
+          <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+            <DialogTrigger asChild>
+               <Button
+                className="bg-[#e67e22] hover:bg-orange-600 flex items-center gap-2"
+              >
+                <Plus size={16} /> Add New Passenger
+              </Button>
+            </DialogTrigger>
+            {/* Add New Passenger Dialog Content */}
+            <DialogContent className="sm:max-w-[550px]">
+              <DialogHeader>
+                <DialogTitle>Add New Passenger</DialogTitle>
+                <DialogDescription>Enter the details for the new passenger.</DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleAddPassenger}>
+                <div className="grid gap-4 py-4">
+                  {/* Passport # */}
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="passport_number" className="text-right">Passport #</Label>
+                    <Input id="passport_number" name="passport_number" value={newPassenger.passport_number} onChange={handleInputChange} className="col-span-3" required />
+                  </div>
+                  {/* Name */}
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="name" className="text-right">Name</Label>
+                    <Input id="name" name="name" value={newPassenger.name} onChange={handleInputChange} className="col-span-3" required />
+                  </div>
+                  {/* Address */}
+                   <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="address" className="text-right">Address</Label>
+                    <Input id="address" name="address" value={newPassenger.address} onChange={handleInputChange} className="col-span-3" />
+                  </div>
+                  {/* Sex */}
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="sex" className="text-right">Sex</Label>
+                    <Select value={newPassenger.sex} onValueChange={(value) => handleSelectChange('sex', value)}>
+                      <SelectTrigger className="col-span-3"><SelectValue placeholder="Select sex" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Male">Male</SelectItem>
+                        <SelectItem value="Female">Female</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {/* Date of Birth */}
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="dob" className="text-right">Date of Birth</Label>
+                    <Input id="dob" name="dob" type="date" value={newPassenger.dob} onChange={handleInputChange} className="col-span-3" required />
+                  </div>
+                  {/* Flight # */}
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="flight_number" className="text-right">Flight #</Label>
+                    <Input id="flight_number" name="flight_number" value={newPassenger.flight_number} onChange={handleInputChange} className="col-span-3" required />
+                  </div>
+                  {/* Ticket # */}
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="ticket_number" className="text-right">Ticket #</Label>
+                    <Input id="ticket_number" name="ticket_number" value={newPassenger.ticket_number} onChange={handleInputChange} className="col-span-3" required />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button type="button" variant="outline">Cancel</Button>
+                  </DialogClose>
+                  <Button type="submit">Add Passenger</Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
 
         <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl">Passenger Records</CardTitle>
-            <div className="mt-4">
+          <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex-grow">
+               <CardTitle className="text-2xl mb-2 md:mb-0">Passenger Records</CardTitle>
+            </div>
+            <div className="w-full md:w-auto md:max-w-sm">
               <Input
-                placeholder="Search passengers by passport, name, flight, or ticket..."
+                placeholder="Search passengers..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="max-w-md"
+                className="w-full"
               />
             </div>
           </CardHeader>
@@ -207,15 +253,15 @@ const Passengers = () => {
                           <TableCell>{passenger.ticket_number}</TableCell>
                           <TableCell>
                             <div className="flex space-x-2">
-                              <Button 
-                                variant="outline" 
+                              <Button
+                                variant="outline"
                                 size="sm"
-                                onClick={() => handleViewDetails(passenger.passport_number)}
+                                onClick={() => handleViewDetails(passenger.passport_number)} // Use updated handler
                               >
                                 <Eye className="mr-1 h-4 w-4" /> View
                               </Button>
-                              <Button 
-                                variant="destructive" 
+                              <Button
+                                variant="destructive"
                                 size="sm"
                                 onClick={() => handleDeletePassenger(passenger.passport_number)}
                               >
@@ -240,103 +286,53 @@ const Passengers = () => {
         </Card>
       </main>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      {/* View Details Dialog */}
+       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
         <DialogContent className="sm:max-w-[550px]">
           <DialogHeader>
-            <DialogTitle>Add New Passenger</DialogTitle>
+            <DialogTitle>Passenger Details</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleAddPassenger}>
+          {selectedPassenger && (
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="passport_number" className="text-right">
-                  Passport #
-                </Label>
-                <Input
-                  id="passport_number"
-                  name="passport_number"
-                  value={newPassenger.passport_number}
-                  onChange={handleInputChange}
-                  className="col-span-3"
-                  required
-                />
+                <Label className="text-right font-semibold">Passport #:</Label>
+                <span className="col-span-3">{selectedPassenger.passport_number}</span>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="name" className="text-right">
-                  Name
-                </Label>
-                <Input
-                  id="name"
-                  name="name"
-                  value={newPassenger.name}
-                  onChange={handleInputChange}
-                  className="col-span-3"
-                  required
-                />
+                <Label className="text-right font-semibold">Name:</Label>
+                <span className="col-span-3">{selectedPassenger.name}</span>
+              </div>
+               <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right font-semibold">Address:</Label>
+                <span className="col-span-3">{selectedPassenger.address}</span>
+              </div>
+               <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right font-semibold">Sex:</Label>
+                <span className="col-span-3">{selectedPassenger.sex}</span>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="sex" className="text-right">
-                  Sex
-                </Label>
-                <select
-                  id="sex"
-                  name="sex"
-                  value={newPassenger.sex}
-                  onChange={handleInputChange}
-                  className="col-span-3 p-2 border rounded"
-                  required
-                >
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                </select>
+                <Label className="text-right font-semibold">DOB:</Label>
+                <span className="col-span-3">{selectedPassenger.dob}</span>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="dob" className="text-right">
-                  Date of Birth
-                </Label>
-                <Input
-                  id="dob"
-                  name="dob"
-                  type="date"
-                  value={newPassenger.dob}
-                  onChange={handleInputChange}
-                  className="col-span-3"
-                  required
-                />
+                <Label className="text-right font-semibold">Age:</Label>
+                <span className="col-span-3">{selectedPassenger.age}</span>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="flight_number" className="text-right">
-                  Flight #
-                </Label>
-                <Input
-                  id="flight_number"
-                  name="flight_number"
-                  value={newPassenger.flight_number}
-                  onChange={handleInputChange}
-                  className="col-span-3"
-                  required
-                />
+                <Label className="text-right font-semibold">Flight #:</Label>
+                <span className="col-span-3">{selectedPassenger.flight_number}</span>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="ticket_number" className="text-right">
-                  Ticket #
-                </Label>
-                <Input
-                  id="ticket_number"
-                  name="ticket_number"
-                  value={newPassenger.ticket_number}
-                  onChange={handleInputChange}
-                  className="col-span-3"
-                  required
-                />
+                <Label className="text-right font-semibold">Ticket #:</Label>
+                <span className="col-span-3">{selectedPassenger.ticket_number}</span>
               </div>
             </div>
-            <DialogFooter>
-              <DialogClose asChild>
-                <Button type="button" variant="outline">Cancel</Button>
-              </DialogClose>
-              <Button type="submit">Add Passenger</Button>
-            </DialogFooter>
-          </form>
+          )}
+          <DialogFooter>
+            <DialogClose asChild>
+                <Button variant="outline">Close</Button>
+            </DialogClose>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

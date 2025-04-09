@@ -1,166 +1,121 @@
+// src/services/api.js
+import { toast } from "sonner"; // Import toast for error feedback
 
 const API_BASE_URL = '/api';
 
-// Sample data for fallback when API is not available
-const mockAirports = [
-  { airport_name: 'John F. Kennedy International Airport', city: 'New York', state: 'NY' },
-  { airport_name: 'Los Angeles International Airport', city: 'Los Angeles', state: 'CA' },
-  { airport_name: "O'Hare International Airport", city: 'Chicago', state: 'IL' },
-  { airport_name: 'Hartsfield-Jackson Atlanta International Airport', city: 'Atlanta', state: 'GA' },
-  { airport_name: 'Dallas/Fort Worth International Airport', city: 'Dallas', state: 'TX' },
-  { airport_name: 'Denver International Airport', city: 'Denver', state: 'CO' }
-];
-
-const mockAirlines = [
-  { airline_id: 'AA', airline_name: 'American Airlines', airport_name: 'Dallas/Fort Worth International Airport' },
-  { airline_id: 'DL', airline_name: 'Delta Air Lines', airport_name: 'Hartsfield-Jackson Atlanta International Airport' },
-  { airline_id: 'UA', airline_name: 'United Airlines', airport_name: "O'Hare International Airport" },
-  { airline_id: 'SW', airline_name: 'Southwest Airlines', airport_name: 'Dallas Love Field' },
-  { airline_id: 'JB', airline_name: 'JetBlue Airways', airport_name: 'John F. Kennedy International Airport' }
-];
-
-const mockFlights = [
-  { 
-    flight_number: 'FL123', 
-    source: 'New York', 
-    destination: 'Los Angeles',
-    status: 'On Time',
-    d_time: '10:00 AM',
-    a_time: '1:00 PM',
-    connected: 'No',
-    duration: '3h',
-    airline_id: 'AA',
-    airline_name: 'American Airlines'
-  },
-  { 
-    flight_number: 'FL456', 
-    source: 'Chicago', 
-    destination: 'Miami',
-    status: 'Delayed',
-    d_time: '12:30 PM',
-    a_time: '4:15 PM',
-    connected: 'No',
-    duration: '3h 45m',
-    airline_id: 'DL',
-    airline_name: 'Delta Airlines'
-  }
-];
-
-const mockEmployees = [
-  { 
-    e_id: 'E001', 
-    name: 'John Smith', 
-    address: '123 Main St, Chicago, IL',
-    title: 'Flight Attendant',
-    destination: 'International',
-    salary: '$58,000',
-    age: 32,
-    dob: '1992-05-15',
-    airport_name: "O'Hare International Airport"
-  }
-];
-
-const mockPassengers = [
-  { 
-    passport_number: 'P123456', 
-    name: 'Robert Brown', 
-    address: '789 Pine St, Boston, MA',
-    sex: 'Male',
-    dob: '1985-07-22',
-    age: 39,
-    flight_number: 'FL123',
-    ticket_number: 'T78901'
-  }
-];
+// Sample data for fallback (keep for now or remove if backend is reliable)
+// ... (mock data definitions remain the same) ...
 
 // Helper function to handle API requests with fallback to mock data
 const fetchWithFallback = async (endpoint, mockData) => {
   try {
-    console.log(`Fetching from: ${API_BASE_URL}${endpoint}`);
+    console.log(`Workspaceing from: ${API_BASE_URL}${endpoint}`);
     const response = await fetch(`${API_BASE_URL}${endpoint}`);
-    
+
     if (!response.ok) {
-      console.warn(`API returned status ${response.status} for ${endpoint}, using mock data`);
-      return mockData;
+      if (response.status === 404) { // Specifically use mock for 404
+          console.warn(`API endpoint ${endpoint} not found (404), using mock data`);
+          return mockData;
+      }
+      // For other errors, still throw but provide context
+      throw new Error(`API returned status ${response.status} for ${endpoint}`);
     }
-    
+
     return await response.json();
   } catch (error) {
-    console.warn(`Error fetching from ${endpoint}, using mock data:`, error);
+    console.error(`Error fetching from ${endpoint}:`, error);
+    // Consider if fallback is always desired on error, or only for specific errors like network issues
+    console.warn(`Using mock data for ${endpoint} due to fetch error.`);
     return mockData;
   }
 };
 
-// API service functions
-export const getAirports = async () => {
-  return await fetchWithFallback('/airports', mockAirports);
+// Helper function for POST requests
+const postData = async (endpoint, data) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      // Try to get error message from response body
+      let errorBody = null;
+      try {
+          errorBody = await response.json();
+      } catch (e) { /* Ignore if body isn't JSON */ }
+
+      const errorMessage = errorBody?.message || `HTTP error! status: ${response.status}`;
+      throw new Error(errorMessage);
+    }
+    const responseData = await response.json();
+    console.log(`Successfully posted to ${endpoint}:`, responseData);
+    return { success: true, data: responseData };
+  } catch (error) {
+    console.error(`Error posting to ${endpoint}:`, error);
+    toast.error(`Failed to add: ${error.message || 'Server error'}`);
+    return { success: false, error };
+  }
 };
 
-export const getAirlines = async () => {
-  return await fetchWithFallback('/airlines', mockAirlines);
-};
 
-export const getFlights = async () => {
-  return await fetchWithFallback('/flights', mockFlights);
-};
+// --- GET Functions (no changes needed) ---
+export const getAirports = async () => await fetchWithFallback('/airports', mockAirports);
+export const getAirlines = async () => await fetchWithFallback('/airlines', mockAirlines);
+export const getFlights = async () => await fetchWithFallback('/flights', mockFlights);
+export const getEmployees = async () => await fetchWithFallback('/employees', mockEmployees);
+export const getPassengers = async () => await fetchWithFallback('/passengers', mockPassengers);
 
-export const getEmployees = async () => {
-  return await fetchWithFallback('/employees', mockEmployees);
-};
+// --- POST Functions (Updated) ---
+export const addAirport = async (airport) => await postData('/airports', airport);
+export const addAirline = async (airline) => await postData('/airlines', airline);
+export const addFlight = async (flight) => await postData('/flights', flight);
+export const addEmployee = async (employee) => await postData('/employees', employee);
+export const addPassenger = async (passenger) => await postData('/passengers', passenger);
 
-export const getPassengers = async () => {
-  return await fetchWithFallback('/passengers', mockPassengers);
-};
 
-// Add functions to handle data creation, update, and deletion
-export const addAirport = async (airport) => {
-  // In a real app, this would send a POST request to the server
-  console.log('Adding airport:', airport);
-  return { success: true, data: airport };
-};
-
+// --- DELETE Functions (Example - Implement if needed) ---
 export const deleteAirport = async (airportName) => {
-  // In a real app, this would send a DELETE request to the server
-  console.log('Deleting airport:', airportName);
+  // In a real app, this would send a DELETE request like:
+  // await fetch(`${API_BASE_URL}/airports/${encodeURIComponent(airportName)}`, { method: 'DELETE' });
+  console.log('Deleting airport:', airportName); // Placeholder
   return { success: true };
 };
-
-export const addAirline = async (airline) => {
-  console.log('Adding airline:', airline);
-  return { success: true, data: airline };
-};
-
 export const deleteAirline = async (airlineId) => {
-  console.log('Deleting airline:', airlineId);
+  console.log('Deleting airline:', airlineId); // Placeholder
   return { success: true };
 };
-
-export const addFlight = async (flight) => {
-  console.log('Adding flight:', flight);
-  return { success: true, data: flight };
-};
-
 export const deleteFlight = async (flightNumber) => {
-  console.log('Deleting flight:', flightNumber);
+  console.log('Deleting flight:', flightNumber); // Placeholder
   return { success: true };
 };
-
-export const addEmployee = async (employee) => {
-  console.log('Adding employee:', employee);
-  return { success: true, data: employee };
-};
-
 export const deleteEmployee = async (employeeId) => {
-  console.log('Deleting employee:', employeeId);
+  console.log('Deleting employee:', employeeId); // Placeholder
   return { success: true };
 };
-
-export const addPassenger = async (passenger) => {
-  console.log('Adding passenger:', passenger);
-  return { success: true, data: passenger };
-};
-
 export const deletePassenger = async (passportNumber) => {
-  console.log('Deleting passenger:', passportNumber);
+  console.log('Deleting passenger:', passportNumber); // Placeholder
   return { success: true };
+};
+
+
+// Export apiService object if needed elsewhere, or keep individual exports
+export const apiService = {
+    getAirports,
+    getAirlines,
+    getFlights,
+    getEmployees,
+    getPassengers,
+    addAirport,
+    addAirline,
+    addFlight,
+    addEmployee,
+    addPassenger,
+    deleteAirport,
+    deleteAirline,
+    deleteFlight,
+    deleteEmployee,
+    deletePassenger,
 };

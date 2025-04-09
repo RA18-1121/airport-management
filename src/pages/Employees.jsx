@@ -1,4 +1,4 @@
-
+// src/pages/Employees.jsx
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -7,98 +7,54 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ArrowLeft, Trash, Eye, Plus } from 'lucide-react';
 import { toast } from 'sonner';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription, // Added Description
   DialogFooter,
-  DialogClose
+  DialogClose,
+  DialogTrigger, // Added Trigger
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'; // Import Select components
+import { apiService } from "@/services/api"; // Import apiService
 
 const Employees = () => {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [addDialogOpen, setAddDialogOpen] = useState(false); // State for Add dialog
+  const [viewDialogOpen, setViewDialogOpen] = useState(false); // State for View dialog
+  const [selectedEmployee, setSelectedEmployee] = useState(null); // State for selected employee details
   const [newEmployee, setNewEmployee] = useState({
     e_id: '',
     name: '',
-    address: '',
+    address: '', // Added address field
     title: '',
     destination: 'Domestic',
     salary: '',
-    age: '',
+    // Removed age, will be calculated on backend/frontend
     dob: '',
     airport_name: ''
   });
 
-  // Mock data - In a real app, this would come from an API
-  const mockEmployees = [
-    { 
-      e_id: 'E001', 
-      name: 'John Smith', 
-      address: '123 Main St, Chicago, IL',
-      title: 'Flight Attendant',
-      destination: 'International',
-      salary: '$58,000',
-      age: 32,
-      dob: '1992-05-15',
-      airport_name: "O'Hare International Airport"
-    },
-    { 
-      e_id: 'E002', 
-      name: 'Sarah Johnson', 
-      address: '456 Park Ave, New York, NY',
-      title: 'Pilot',
-      destination: 'Domestic',
-      salary: '$120,000',
-      age: 41,
-      dob: '1983-11-22',
-      airport_name: 'John F. Kennedy International Airport'
-    },
-    { 
-      e_id: 'E003', 
-      name: 'Michael Rodriguez', 
-      address: '789 Ocean Dr, Miami, FL',
-      title: 'Ground Crew',
-      destination: 'Domestic',
-      salary: '$48,000',
-      age: 27,
-      dob: '1997-03-30',
-      airport_name: 'Miami International Airport'
-    },
-    { 
-      e_id: 'E004', 
-      name: 'Emily Chen', 
-      address: '321 Tech Way, San Francisco, CA',
-      title: 'Air Traffic Controller',
-      destination: 'International',
-      salary: '$92,000',
-      age: 35,
-      dob: '1989-08-12',
-      airport_name: 'San Francisco International Airport'
-    },
-    { 
-      e_id: 'E005', 
-      name: 'David Williams', 
-      address: '567 Southern Blvd, Atlanta, GA',
-      title: 'Baggage Handler',
-      destination: 'Domestic',
-      salary: '$42,000',
-      age: 29,
-      dob: '1995-02-28',
-      airport_name: 'Hartsfield-Jackson Atlanta International Airport'
-    }
-  ];
-
+  // Fetch initial data
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setEmployees(mockEmployees);
-      setLoading(false);
-    }, 800);
+    const fetchEmployees = async () => {
+      setLoading(true);
+      try {
+        const data = await apiService.getEmployees();
+        setEmployees(data);
+      } catch (error) {
+        toast.error("Failed to load employees");
+        console.error("Error fetching employees:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchEmployees();
   }, []);
 
   const handleInputChange = (e) => {
@@ -109,46 +65,63 @@ const Employees = () => {
     }));
   };
 
-  const handleAddEmployee = (e) => {
+   const handleSelectChange = (name, value) => {
+    setNewEmployee(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  // Updated handleAddEmployee
+  const handleAddEmployee = async (e) => {
     e.preventDefault();
-    // In a real app, this would call an API to add the employee
-    const newEmployeeWithAge = {
-      ...newEmployee,
-      // Calculate age based on DOB
-      age: new Date().getFullYear() - new Date(newEmployee.dob).getFullYear()
-    };
-    
-    setEmployees([...employees, newEmployeeWithAge]);
-    toast.success(`Added employee: ${newEmployee.name}`);
-    setDialogOpen(false);
-    setNewEmployee({
-      e_id: '',
-      name: '',
-      address: '',
-      title: '',
-      destination: 'Domestic',
-      salary: '',
-      age: '',
-      dob: '',
-      airport_name: ''
-    });
+    // Add validation as needed
+    if (!newEmployee.e_id || !newEmployee.name || !newEmployee.title || !newEmployee.salary || !newEmployee.dob || !newEmployee.airport_name) {
+        toast.error("Please fill in all required fields.");
+        return;
+    }
+
+    const result = await apiService.addEmployee(newEmployee);
+    if (result.success) {
+      // The API response might include the calculated age
+      setEmployees(currentEmployees => [...currentEmployees, result.data]);
+      toast.success(`Added employee: ${newEmployee.name}`);
+      setAddDialogOpen(false); // Close add dialog
+      // Reset form
+      setNewEmployee({
+        e_id: '', name: '', address: '', title: '', destination: 'Domestic', salary: '', dob: '', airport_name: ''
+      });
+    }
   };
 
-  const handleDeleteEmployee = (employeeId) => {
-    setEmployees(employees.filter(employee => employee.e_id !== employeeId));
-    toast.success(`Employee ${employeeId} deleted`);
+  const handleDeleteEmployee = async (employeeId) => {
+    // Keep using local filter for now
+    try {
+      // await apiService.deleteEmployee(employeeId); // Future implementation
+      setEmployees(employees.filter(employee => employee.e_id !== employeeId));
+      toast.success(`Employee ${employeeId} deleted (locally)`);
+    } catch (error) {
+      console.error("Error deleting employee:", error);
+      toast.error("Failed to delete employee");
+    }
   };
 
+  // Updated handleViewDetails
   const handleViewDetails = (employeeId) => {
-    toast.info(`Viewing details for employee ${employeeId}`);
-    // In a real app, this would navigate to an employee details page
+    const employee = employees.find(e => e.e_id === employeeId);
+     if (employee) {
+      setSelectedEmployee(employee);
+      setViewDialogOpen(true); // Open view dialog
+    } else {
+        toast.error("Could not find employee details.");
+    }
   };
 
-  const filteredEmployees = employees.filter(employee => 
-    employee.e_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.airport_name.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredEmployees = employees.filter(employee =>
+    (employee.e_id && employee.e_id.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (employee.name && employee.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (employee.title && employee.title.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (employee.airport_name && employee.airport_name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
@@ -167,23 +140,90 @@ const Employees = () => {
               <ArrowLeft size={16} /> Back to Dashboard
             </Button>
           </Link>
-          <Button 
-            className="bg-[#e67e22] hover:bg-orange-600 flex items-center gap-2"
-            onClick={() => setDialogOpen(true)}
-          >
-            <Plus size={16} /> Add New Employee
-          </Button>
+          {/* Add New Employee Button Trigger */}
+          <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+            <DialogTrigger asChild>
+               <Button className="bg-[#e67e22] hover:bg-orange-600 flex items-center gap-2">
+                <Plus size={16} /> Add New Employee
+               </Button>
+            </DialogTrigger>
+             {/* Add New Employee Dialog Content */}
+             <DialogContent className="sm:max-w-[550px]">
+              <DialogHeader>
+                <DialogTitle>Add New Employee</DialogTitle>
+                <DialogDescription>Enter the details for the new employee.</DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleAddEmployee}>
+                <div className="grid gap-4 py-4">
+                  {/* Employee ID */}
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="e_id" className="text-right">Employee ID</Label>
+                    <Input id="e_id" name="e_id" value={newEmployee.e_id} onChange={handleInputChange} className="col-span-3" required />
+                  </div>
+                  {/* Name */}
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="name" className="text-right">Name</Label>
+                    <Input id="name" name="name" value={newEmployee.name} onChange={handleInputChange} className="col-span-3" required />
+                  </div>
+                  {/* Address */}
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="address" className="text-right">Address</Label>
+                    <Input id="address" name="address" value={newEmployee.address} onChange={handleInputChange} className="col-span-3" />
+                  </div>
+                  {/* Title */}
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="title" className="text-right">Title</Label>
+                    <Input id="title" name="title" value={newEmployee.title} onChange={handleInputChange} className="col-span-3" required />
+                  </div>
+                  {/* Destination */}
+                   <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="destination" className="text-right">Destination</Label>
+                     <Select value={newEmployee.destination} onValueChange={(value) => handleSelectChange('destination', value)}>
+                       <SelectTrigger className="col-span-3"><SelectValue placeholder="Select destination type" /></SelectTrigger>
+                       <SelectContent>
+                         <SelectItem value="Domestic">Domestic</SelectItem>
+                         <SelectItem value="International">International</SelectItem>
+                       </SelectContent>
+                     </Select>
+                  </div>
+                  {/* Salary */}
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="salary" className="text-right">Salary</Label>
+                    <Input id="salary" name="salary" value={newEmployee.salary} onChange={handleInputChange} className="col-span-3" placeholder="e.g., $58,000 or 58000" required />
+                  </div>
+                  {/* Date of Birth */}
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="dob" className="text-right">Date of Birth</Label>
+                    <Input id="dob" name="dob" type="date" value={newEmployee.dob} onChange={handleInputChange} className="col-span-3" required />
+                  </div>
+                  {/* Airport */}
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="airport_name" className="text-right">Airport</Label>
+                    <Input id="airport_name" name="airport_name" value={newEmployee.airport_name} onChange={handleInputChange} className="col-span-3" required />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button type="button" variant="outline">Cancel</Button>
+                  </DialogClose>
+                  <Button type="submit">Add Employee</Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
 
         <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl">Employee Records</CardTitle>
-            <div className="mt-4">
+          <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex-grow">
+              <CardTitle className="text-2xl mb-2 md:mb-0">Employee Records</CardTitle>
+            </div>
+            <div className="w-full md:w-auto md:max-w-sm">
               <Input
-                placeholder="Search employees by ID, name, title, or airport..."
+                placeholder="Search employees..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="max-w-md"
+                className="w-full"
               />
             </div>
           </CardHeader>
@@ -218,15 +258,15 @@ const Employees = () => {
                           <TableCell>{employee.airport_name}</TableCell>
                           <TableCell>
                             <div className="flex space-x-2">
-                              <Button 
-                                variant="outline" 
+                              <Button
+                                variant="outline"
                                 size="sm"
-                                onClick={() => handleViewDetails(employee.e_id)}
+                                onClick={() => handleViewDetails(employee.e_id)} // Use updated handler
                               >
                                 <Eye className="mr-1 h-4 w-4" /> View
                               </Button>
-                              <Button 
-                                variant="destructive" 
+                              <Button
+                                variant="destructive"
                                 size="sm"
                                 onClick={() => handleDeleteEmployee(employee.e_id)}
                               >
@@ -251,102 +291,60 @@ const Employees = () => {
         </Card>
       </main>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+       {/* View Details Dialog */}
+       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
         <DialogContent className="sm:max-w-[550px]">
           <DialogHeader>
-            <DialogTitle>Add New Employee</DialogTitle>
+            <DialogTitle>Employee Details</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleAddEmployee}>
+          {selectedEmployee && (
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="e_id" className="text-right">
-                  Employee ID
-                </Label>
-                <Input
-                  id="e_id"
-                  name="e_id"
-                  value={newEmployee.e_id}
-                  onChange={handleInputChange}
-                  className="col-span-3"
-                  required
-                />
+                <Label className="text-right font-semibold">ID:</Label>
+                <span className="col-span-3">{selectedEmployee.e_id}</span>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="name" className="text-right">
-                  Name
-                </Label>
-                <Input
-                  id="name"
-                  name="name"
-                  value={newEmployee.name}
-                  onChange={handleInputChange}
-                  className="col-span-3"
-                  required
-                />
+                <Label className="text-right font-semibold">Name:</Label>
+                <span className="col-span-3">{selectedEmployee.name}</span>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="title" className="text-right">
-                  Title
-                </Label>
-                <Input
-                  id="title"
-                  name="title"
-                  value={newEmployee.title}
-                  onChange={handleInputChange}
-                  className="col-span-3"
-                  required
-                />
+                <Label className="text-right font-semibold">Address:</Label>
+                <span className="col-span-3">{selectedEmployee.address}</span>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="salary" className="text-right">
-                  Salary
-                </Label>
-                <Input
-                  id="salary"
-                  name="salary"
-                  value={newEmployee.salary}
-                  onChange={handleInputChange}
-                  className="col-span-3"
-                  required
-                />
+                <Label className="text-right font-semibold">Title:</Label>
+                <span className="col-span-3">{selectedEmployee.title}</span>
+              </div>
+               <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right font-semibold">Destination:</Label>
+                <span className="col-span-3">{selectedEmployee.destination}</span>
+              </div>
+               <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right font-semibold">Salary:</Label>
+                <span className="col-span-3">{selectedEmployee.salary}</span>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="dob" className="text-right">
-                  Date of Birth
-                </Label>
-                <Input
-                  id="dob"
-                  name="dob"
-                  type="date"
-                  value={newEmployee.dob}
-                  onChange={handleInputChange}
-                  className="col-span-3"
-                  required
-                />
+                <Label className="text-right font-semibold">Age:</Label>
+                <span className="col-span-3">{selectedEmployee.age}</span>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="airport_name" className="text-right">
-                  Airport
-                </Label>
-                <Input
-                  id="airport_name"
-                  name="airport_name"
-                  value={newEmployee.airport_name}
-                  onChange={handleInputChange}
-                  className="col-span-3"
-                  required
-                />
+                <Label className="text-right font-semibold">DOB:</Label>
+                <span className="col-span-3">{selectedEmployee.dob}</span>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right font-semibold">Airport:</Label>
+                <span className="col-span-3">{selectedEmployee.airport_name}</span>
               </div>
             </div>
-            <DialogFooter>
-              <DialogClose asChild>
-                <Button type="button" variant="outline">Cancel</Button>
-              </DialogClose>
-              <Button type="submit">Add Employee</Button>
-            </DialogFooter>
-          </form>
+          )}
+          <DialogFooter>
+            <DialogClose asChild>
+                <Button variant="outline">Close</Button>
+            </DialogClose>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
+
 
       <footer className="bg-[#2c3e50] text-white p-4 mt-8">
         <div className="container mx-auto text-center">
