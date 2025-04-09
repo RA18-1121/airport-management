@@ -2,12 +2,12 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-import { componentTagger } from "lovable-tagger";
+// lovable-tagger might not be needed for local dev unless you use their specific features
+// import { componentTagger } from "lovable-tagger"; 
 
-// https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
-    host: "::",
+    host: "::", // Allows access from network if needed, localhost is default
     port: 8080, // Frontend runs on this port
     // Add this proxy configuration:
     proxy: {
@@ -20,8 +20,8 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
-    mode === 'development' &&
-    componentTagger(),
+    // Only include tagger if needed and configured
+    // mode === 'development' && componentTagger(),
   ].filter(Boolean),
   resolve: {
     alias: {
